@@ -24,7 +24,10 @@ class App < Sinatra::Application
   end
 
   post '/gitlab-ci' do
-    data = JSON.parse request.body.read
+    request.body.rewind
+    body = request.body.read
+    data = JSON.parse body
+    logger.info data
 
     project_name = data['project_name']
     if $config['gitlab'].include? project_name
@@ -41,6 +44,8 @@ class App < Sinatra::Application
       ch = $config['gitlab'][project_name]['channel']
 
       App.ircbot.Channel(ch).send("#{project_name} (#{branch}) build #{build_status} - #{user} #{commit_count_str}#{sha}: #{message}")
+    else
+      logger.info "Discarding unknown project: #{project_name}"
     end
     200
   end
