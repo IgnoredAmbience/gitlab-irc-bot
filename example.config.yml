@@ -7,6 +7,10 @@ gitlab:
   "name / repo":
     channel: "#test"
 
+buildbot:
+  "name":
+    channel: "#test"
+
 # See Cinch::Configuration::Bot for settings
 irc:
   :server: irc.example.com
