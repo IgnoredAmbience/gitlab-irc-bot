@@ -18,7 +18,8 @@ class App < Sinatra::Application
   @@ircbot = nil
 
   configure do
-    set :bind, '0.0.0.0'
+    set :environment, :production
+    set :bind, '127.0.0.1'
     set :port, $config['sinatra']['port']
     disable :traps
   end
@@ -70,6 +71,46 @@ class App < Sinatra::Application
     200
   end
 
+  post '/buildbot' do
+    array = JSON.parse params[:packets]
+    array.each do |status|
+      if $config['buildbot'].include? status['project']
+        ch = $config['buildbot'][status['project']]['channel']
+
+        if status['event'] == 'buildStarted'
+        elsif status['event'] == 'buildETAUpdate'
+        elsif status['event'] == 'buildFinished'
+          build = status['payload']['build']
+          builderName = build['builderName']
+          build_status = format_status build['text'].join(" ")
+          number = build['number']
+          
+          uri_match = /^(.*)\/steps\/.*/.match(build['logs'][0][1])
+          uri = uri_match && uri_match[1] || ""
+
+          App.ircbot.Channel(ch).send("#{builderName}##{number} #{build_status}: #{uri}")
+        elsif status['event'].start_with?('builder', 'step', 'log', 'slave', 'change', 'change', 'request')
+	elsif status['event'] == 'start'
+        elsif status['event'] == 'shutdown'
+        elsif status['event'] == 'buildsetSubmitted'
+        elsif status['event'] == 'buildedRemoved'
+        else
+          logger.info "Unknown buildbot event #{status[event]}"
+          logger.info status['payload']
+        end
+      end
+    end
+    200
+  end
+
+  not_found do
+    'not found'
+  end
+
+  error do
+    'error'
+  end
+
   def format_travis_status(status, status_message)
     c = :red
     if status == 0
@@ -82,9 +123,9 @@ class App < Sinatra::Application
   end
 
   def format_status(str)
-    if str == "failed"
+    if /failed/ =~ str
       colour = :red
-    elsif str == "success"
+    elsif /success/ =~ str
       colour = :green
     else
       colour = :yellow
